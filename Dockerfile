@@ -12,8 +12,9 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Install root dependencies (layer-cached until package.json changes)
+# Using `npm install` instead of `npm ci` for cross-npm-version lockfile compat
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN npm install --ignore-scripts
 
 # Copy full source
 COPY . .
@@ -46,6 +47,16 @@ COPY --from=builder /app/api ./api
 
 # Static data files used by handlers at runtime
 COPY --from=builder /app/data ./data
+
+# Seed scripts for populating Redis caches (used by seeder container)
+COPY --from=builder /app/scripts ./scripts
+
+# Shared modules required by seed scripts
+COPY --from=builder /app/shared ./shared
+
+# Install seed script dependencies (xlsx, sax, etc.)
+# Use --ignore-scripts to skip native module compilation (not needed for seed scripts)
+RUN cd scripts && npm install --omit=dev --ignore-scripts
 
 # Built frontend static files
 COPY --from=builder /app/dist /usr/share/nginx/html

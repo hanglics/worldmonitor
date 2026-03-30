@@ -1,5 +1,3 @@
-import { initClerk, getCurrentClerkUser, subscribeClerk } from './clerk';
-
 /** Minimal user profile exposed to UI components. */
 export interface AuthUser {
   id: string;
@@ -15,29 +13,14 @@ export interface AuthSession {
   isPending: boolean;
 }
 
-let _currentSession: AuthSession = { user: null, isPending: true };
-
-function snapshotSession(): AuthSession {
-  const cu = getCurrentClerkUser();
-  if (!cu) return { user: null, isPending: false };
-  return {
-    user: {
-      id: cu.id,
-      name: cu.name,
-      email: cu.email,
-      image: cu.image,
-      role: cu.plan,
-    },
-    isPending: false,
-  };
-}
+// Self-hosted: no authentication — always unauthenticated (pro access handled separately)
+const _currentSession: AuthSession = { user: null, isPending: false };
 
 /**
- * Initialize auth state. Call once at app startup before UI subscribes.
+ * Initialize auth state. No-op for self-hosted single-user deployment.
  */
 export async function initAuthState(): Promise<void> {
-  await initClerk();
-  _currentSession = snapshotSession();
+  // Self-hosted: Clerk auth is disabled — no sign-in required
 }
 
 /**
@@ -45,13 +28,9 @@ export async function initAuthState(): Promise<void> {
  * @returns Unsubscribe function.
  */
 export function subscribeAuthState(callback: (state: AuthSession) => void): () => void {
-  // Emit current state immediately
+  // Emit current state immediately; no dynamic changes in self-hosted mode
   callback(_currentSession);
-
-  return subscribeClerk(() => {
-    _currentSession = snapshotSession();
-    callback(_currentSession);
-  });
+  return () => {};
 }
 
 /**
